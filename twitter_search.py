@@ -140,66 +140,70 @@ def email_body(template_vars):
 
 # Store max id we have seen in a file.
 # The following methods read from and write to that file.
-def format_max_id_filename(max_id_filename):
-    return re.sub(r"[\s\'\"]", "_", max_id_filename)
+def format_since_id_filename(since_id_filename):
+    return re.sub(r"[\s\'\"]", "_", since_id_filename)
 
-def write_max_id_to_file(max_id_filename, max_id):
-    max_id_filename = format_max_id_filename(max_id_filename)
-    f = open(max_id_filename, 'w')
-    f.write(smart_str(max_id))
+def write_since_id_to_file(since_id_filename, since_id):
+    since_id = long(since_id)
+    if since_id <= get_since_id(since_id_filename):
+        return
+    since_id_filename = format_since_id_filename(since_id_filename)
+    f = open(since_id_filename, 'w')
+    f.write(smart_str(since_id))
     f.close()
 
-def get_max_id(max_id_filename):
-    max_id = 0
-    max_id_filename = format_max_id_filename(max_id_filename)
+def get_since_id(since_id_filename):
+    since_id = 0
+    since_id_filename = format_since_id_filename(since_id_filename)
 
     # Ensure file exists
-    f = open(max_id_filename, 'a')
+    f = open(since_id_filename, 'a')
     f.close()
 
-    f = open(max_id_filename, 'r')
+    f = open(since_id_filename, 'r')
     line = f.readline()
     f.close()
 
     line = line.strip()
     if (line  == ''):
-        max_id = 0
+        since_id = 0
     else:
-        max_id = line
+        since_id = line
 
-    return long(max_id)
+    return long(since_id)
 
-def search_and_email(api, query, max_id_filename, recipients, count=100):
+def search_and_email(api, query, since_id_filename, recipients, count=100):
     """
     Params:
     @api twitter.Api: client instance
     @query str: search query for twitter
-    @max_id_filename str: file where we store max id we have seen in this search and emailed about. (cursor)
+    @since_id_filename str: file where we store max id we have seen in this search and emailed about. (cursor)
     @recipients str: CSV of emails to notify about tweet
     @count int: max number of tweets to send
 
     Side Effects:
-    Writes to max_id_filename updating the cursor so we don't email about the same tweet 2x.
+    Writes to since_id_filename updating the cursor so we don't email about the same tweet 2x.
 
     """
-    max_id = get_max_id(max_id_filename)
+    since_id = get_since_id(since_id_filename)
 
-    tweets =  api.GetSearch(term=query, max_id=max_id, count=count)
+    tweets =  api.GetSearch(term=query, since_id=since_id, count=count)
     tweets.sort(key=lambda x: x.id) # ensure tweets are sorted oldest => newest
     for tweet in tweets:
+        import pdb; pdb.set_trace()
         email_vars = email_template_vars_from_tweet(tweet)
         body = email_body(email_vars)
         email_tweet(to=recipients, subject=email_vars['subject'],
                 text=body['text'],
                 html=body['html'])
         # mark this tweet as done
-        write_max_id_to_file(max_id_filename, tweet.id)
+        write_since_id_to_file(since_id_filename, tweet.id)
 
 
 def email_tweet(to, subject, text, html=None):
     gmailer.GMAIL_SETTINGS['user'] = settings.GMAIL_USER
     gmailer.GMAIL_SETTINGS['password'] = settings.GMAIL_PASSWORD
-    gmailer.mail(to=to, subject=subject, text=text, html=html)
+    gmailer.mail(to=to, subject=subject, text=text, html=html, cache_connection=True)
     
 
 class TestSearch(unittest.TestCase):
@@ -219,11 +223,11 @@ class TestSearch(unittest.TestCase):
 if __name__ == "__main__":
     """
 Example:
-python twitter_search.py -f ./maxid1 -r "you@gmail.com" -q "aristotle"
+python twitter_search.py -f ./since_id.txt -r "you@gmail.com" -q "aristotle"
     """
     import argparse
     parser = argparse.ArgumentParser("python twitter_search.py")
-    parser.add_argument('-f','--max_id_filename', required=True, dest="max_id_filename", type=str,
+    parser.add_argument('-f','--since_id_filename', required=True, dest="since_id_filename", type=str,
                         help="Path to file storing max id of tweets alreadyemailed.")
     parser.add_argument('-r','--recipients', required=True, dest="recipients", type=str,
                         help="CSV of emails to notify about twitter search.")
@@ -235,4 +239,4 @@ python twitter_search.py -f ./maxid1 -r "you@gmail.com" -q "aristotle"
     api = twitter.Api(**settings.TWITTER_SETTINGS)
 
     search_and_email(api=api, query=args.query,
-            max_id_filename=args.max_id_filename, recipients=args.recipients)
+            since_id_filename=args.since_id_filename, recipients=args.recipients)

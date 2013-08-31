@@ -6,7 +6,6 @@ from email.MIMEBase import MIMEBase
 from email.MIMEText import MIMEText
 from email import Encoders
 import os
-import logging
 
 GMAIL_SETTINGS = {
     'user': '', # whatever@gmail.com,
@@ -14,7 +13,7 @@ GMAIL_SETTINGS = {
 }
 
 
-def mail(to, subject, text, attach=None, html=None, pre=False):
+def mail(to, subject, text, attach=None, html=None, pre=False, cache_connection=False):
     msg = MIMEMultipart()
     
     msg['From'] = GMAIL_SETTINGS['user']
@@ -48,15 +47,22 @@ def mail(to, subject, text, attach=None, html=None, pre=False):
         part.add_header('Content-Disposition',
                 'attachment; filename="%s"' % os.path.basename(attach))
         msg.attach(part)
-    mailServer = smtplib.SMTP("smtp.gmail.com", 587)
-    mailServer.ehlo()
-    mailServer.starttls()
-    mailServer.ehlo()
-    mailServer.login(GMAIL_SETTINGS['user'], GMAIL_SETTINGS['password'])
+
+    if cache_connection and hasattr(mail, 'cached_connection'):
+        mailServer = mail.cached_connection
+    else:
+        mailServer = smtplib.SMTP("smtp.gmail.com", 587)
+        mailServer.ehlo()
+        mailServer.starttls()
+        mailServer.ehlo()
+        mailServer.login(GMAIL_SETTINGS['user'], GMAIL_SETTINGS['password'])
     
     mailServer.sendmail(GMAIL_SETTINGS['user'], to, msg.as_string())
-
-    mailServer.close()
+    
+    if cache_connection:
+        mail.cached_connection = mailServer
+    else:
+        mailServer.close()
 
 # mail("kortina@gmail.com",
 #    "Hello from python!",
