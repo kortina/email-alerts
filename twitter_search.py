@@ -190,7 +190,6 @@ def search_and_email(api, query, since_id_filename, recipients, count=100):
     tweets =  api.GetSearch(term=query, since_id=since_id, count=count)
     tweets.sort(key=lambda x: x.id) # ensure tweets are sorted oldest => newest
     for tweet in tweets:
-        import pdb; pdb.set_trace()
         email_vars = email_template_vars_from_tweet(tweet)
         body = email_body(email_vars)
         email_tweet(to=recipients, subject=email_vars['subject'],
