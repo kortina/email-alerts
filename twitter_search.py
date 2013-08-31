@@ -219,10 +219,10 @@ class TestSearch(unittest.TestCase):
 if __name__ == "__main__":
     """
 Example:
-python main.py -f ./maxid1 -r "kortina@gmail.com" -q "venmo"
+python twitter_search.py -f ./maxid1 -r "you@gmail.com" -q "aristotle"
     """
     import argparse
-    parser = argparse.ArgumentParser("python main.py")
+    parser = argparse.ArgumentParser("python twitter_search.py")
     parser.add_argument('-f','--max_id_filename', required=True, dest="max_id_filename", type=str,
                         help="Path to file storing max id of tweets alreadyemailed.")
     parser.add_argument('-r','--recipients', required=True, dest="recipients", type=str,
