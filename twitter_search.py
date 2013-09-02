@@ -9,7 +9,6 @@ import gmailer
 import twitter
 import settings
 import unittest
-import urllib
 
 
 
@@ -99,26 +98,26 @@ def email_body(template_vars):
     html = """
     <table border="0" cellspacing="0" cellpadding="5">
     <tr>
-    <td style="vertical-align:top;" width="25">
-        <a href="%(profile_link)s"><img  style="width:48px; height:48px;" src="%(profile_image_url)s" /> 
+    <td style="vertical-align:top;">
+        <a href="%(profile_link)s"><img style="width:48px; height:48px; padding-right:5px;" src="%(profile_image_url)s" /> 
     </td>
     <td style="vertical-align:top;" width="400">
         %(tweet_text)s
         <br /><br /><br />
         <a href="%(profile_link)s">@%(screen_name)s</a> - 
         <a href="http://twitter.com/home?status=d %(screen_name)s+">DM</a>
-        <br /><br /><a href="%(tweet_link)s">%(tweet_link)s</a>
-    </td>
-    <td width="200" style="vertical-align:top;">
-        %(created_at)s
-        <br /><a href="%(profile_link)s">%(screen_name)s</a>
-        <br />%(name)s
-        <br />%(description)s
-        <br />
-        <br />Followers: %(followers_count)s
-        <br />Friends: %(friends_count)s
-        <br />Favs: %(favourites_count)s
-        <br />Updates: %(statuses_count)s
+        <br />%(created_at)s
+        <br /><a href="%(tweet_link)s">%(tweet_link)s</a>
+        <div style="max-width:350px;">
+            <br ><br /><a href="%(profile_link)s">%(screen_name)s</a> - %(name)s
+            <br />
+            <br />%(description)s
+            <br />
+            <br />followers: %(followers_count)s
+            <br />friends: %(friends_count)s
+            <br />favs: %(favourites_count)s
+            <br />updates: %(statuses_count)s
+        </div>
     </td>
     </tr>
     </table>
@@ -195,6 +194,8 @@ def search_and_email(api, query, since_id_filename, recipients, count=100):
         email_tweet(to=recipients, subject=email_vars['subject'],
                 text=body['text'],
                 html=body['html'])
+
+        # import pdb; pdb.set_trace()
         # mark this tweet as done
         write_since_id_to_file(since_id_filename, tweet.id)
 
