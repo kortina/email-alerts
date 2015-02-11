@@ -11,8 +11,6 @@ import settings
 import unittest
 
 
-
-
 # Returns a bytestring version of 's', encoded as specified in 'encoding'.
 # https://gist.github.com/andreisavu/192270
 def smart_str(s, encoding='utf-8', errors='strict'):
@@ -31,25 +29,34 @@ def smart_str(s, encoding='utf-8', errors='strict'):
     else:
         return s
 
+
 def replace_plain_links_with_anchor_tags(text, hide_query_strings=True):
-      s = text or ''
-      s = str(s)
-      reg = re.compile(r'(?P<entire_link>(?P<host_and_path>https?\:\/\/[^\s\?\<\>]+)(?P<qs>\?[^\s\<\>]+)?)', re.I)
-      if hide_query_strings:
-          s = reg.subn(r'<a href="\g<entire_link>">\g<host_and_path></a>', s)[0]
-      else:
-          s = reg.subn(r'<a href="\g<entire_link>">\g<entire_link></a>', s)[0]
-      return s
+    text = text or ''
+    text = str(text)
+    exp = '(?P<entire_link>(?P<host_and_path>https?\:\/\/[^\s\?\<\>]+)' \
+          + '(?P<qs>\?[^\s\<\>]+)?)'
+    reg = re.compile(exp, re.I)
+    if hide_query_strings:
+        exp = r'<a href="\g<entire_link>">\g<host_and_path></a>'
+        text = reg.subn(exp, text)[0]
+    else:
+        exp = r'<a href="\g<entire_link>">\g<entire_link></a>'
+        text = reg.subn(exp, text)[0]
+    return text
+
 
 def linkify_tweet(tweet, linkify_hyperlinks=True):
     if linkify_hyperlinks:
-        tweet = replace_plain_links_with_anchor_tags(tweet, hide_query_strings=False)
+        tweet = replace_plain_links_with_anchor_tags(tweet,
+                                                     hide_query_strings=False)
     tweet = re.sub(r'(\A|\s)@(\w+)',
                    r'\1@<a href="http://www.twitter.com/\2">\2</a>',
                    tweet)
+    exp = r'\1#<a href="http://search.twitter.com/search?q=%23\2">\2</a>'
     return re.sub(r'(\A|\s)#(\w+)',
-                  r'\1#<a href="http://search.twitter.com/search?q=%23\2">\2</a>',
+                  exp,
                   tweet)
+
 
 def email_template_vars_from_tweet(status):
     """
@@ -60,18 +67,20 @@ def email_template_vars_from_tweet(status):
     dict of info from the tweet formatted for email template
     """
     d = {}
-    d['screen_name'] = smart_str(status.user.screen_name)
+    screen_name = status.user.screen_name
+    d['screen_name'] = smart_str(screen_name)
     d['profile_image_url'] = smart_str(status.user.profile_image_url)
-    d['profile_link'] = "https://twitter.com/%s" % smart_str(status.user.screen_name)
+    d['ext_url'] = smart_str(status.user.url or '')
+    d['profile_link'] = "https://twitter.com/%s" % smart_str(screen_name)
     d['tweet_link'] = "https://twitter.com/%s/status/%s" % (
-            smart_str(status.user.screen_name), status.id )
-    # parsed_time =  time.strptime(status.created_at, "%a, %d %b %Y %H:%M:%S +0000")
+        smart_str(status.user.screen_name),
+        status.id)
     d['tweet_text'] = smart_str(status.text)
     d['created_at'] = smart_str(status.created_at)
     d['created_at'] = re.sub(r" \+.*$", "", d['created_at'])
     d['created_at'] = re.sub(r":\d\d$", "", d['created_at'])
     d['tweet_id'] = status.id
-    d['subject'] = '@' +  d['screen_name'] + ':' + ' ' + d['tweet_text']
+    d['subject'] = '@' + d['screen_name'] + ':' + ' ' + d['tweet_text']
     d['name'] = smart_str(status.user.name)
     d['description'] = smart_str(status.user.description)
     d['favourites_count'] = smart_str(status.user.favourites_count)
@@ -79,6 +88,7 @@ def email_template_vars_from_tweet(status):
     d['statuses_count'] = smart_str(status.user.statuses_count)
     d['friends_count'] = smart_str(status.user.friends_count)
     return d
+
 
 def email_body(template_vars):
     """
@@ -90,7 +100,6 @@ def email_body(template_vars):
         "html": html body
         "text": plaintext body
     }
-    
     """
     subs = template_vars
     subs['tweet_text'] = linkify_tweet(subs['tweet_text'])
@@ -99,17 +108,22 @@ def email_body(template_vars):
     <table border="0" cellspacing="0" cellpadding="5">
     <tr>
     <td style="vertical-align:top;">
-        <a href="%(profile_link)s"><img style="width:48px; height:48px; padding-right:5px;" src="%(profile_image_url)s" /> 
+        <a href="%(profile_link)s"><img style="width:48px;
+                                               height:48px;
+                                               padding-right:5px;"
+                                        src="%(profile_image_url)s" />
     </td>
     <td style="vertical-align:top;" width="400">
         %(tweet_text)s
         <br /><br /><br />
-        <a href="%(profile_link)s">@%(screen_name)s</a> - 
+        <a href="%(profile_link)s">@%(screen_name)s</a> -
         <a href="http://twitter.com/home?status=d %(screen_name)s+">DM</a>
         <br />%(created_at)s
         <br /><a href="%(tweet_link)s">%(tweet_link)s</a>
         <div style="max-width:350px;">
-            <br ><br /><a href="%(profile_link)s">%(screen_name)s</a> - %(name)s
+            <br ><br /><a href="%(profile_link)s">%(screen_name)s</a>
+            - %(name)s
+            <br /><a href="%(ext_url)s">%(ext_url)s</a>
             <br />
             <br />%(description)s
             <br />
@@ -123,9 +137,9 @@ def email_body(template_vars):
     </table>
     <br /><br />
     """ % subs
-    
-    html= '<html><body>' + html + '</body></html>'
-    
+
+    html = '<html><body>' + html + '</body></html>'
+
     text = """Author Screenname: %(screen_name)s
     Time: %(created_at)s
     Tweet: %(tweet_text)s
@@ -135,12 +149,11 @@ def email_body(template_vars):
     return {"html": html, "text": text}
 
 
-
-
 # Store max id we have seen in a file.
 # The following methods read from and write to that file.
 def format_since_id_filename(since_id_filename):
     return re.sub(r"[\s\'\"]", "_", since_id_filename)
+
 
 def write_since_id_to_file(since_id_filename, since_id):
     since_id = long(since_id)
@@ -150,6 +163,7 @@ def write_since_id_to_file(since_id_filename, since_id):
     f = open(since_id_filename, 'w')
     f.write(smart_str(since_id))
     f.close()
+
 
 def get_since_id(since_id_filename):
     since_id = 0
@@ -164,36 +178,40 @@ def get_since_id(since_id_filename):
     f.close()
 
     line = line.strip()
-    if (line  == ''):
+    if (line == ''):
         since_id = 0
     else:
         since_id = line
 
     return long(since_id)
 
+
 def search_and_email(api, query, since_id_filename, recipients, count=100):
     """
     Params:
     @api twitter.Api: client instance
     @query str: search query for twitter
-    @since_id_filename str: file where we store max id we have seen in this search and emailed about. (cursor)
+    @since_id_filename str: file where we store max id we have seen
+                            in this search and emailed about. (cursor)
     @recipients str: CSV of emails to notify about tweet
     @count int: max number of tweets to send
 
     Side Effects:
-    Writes to since_id_filename updating the cursor so we don't email about the same tweet 2x.
+    Writes to since_id_filename updating the cursor so we don't
+    email about the same tweet 2x.
 
     """
     since_id = get_since_id(since_id_filename)
 
-    tweets =  api.GetSearch(term=query, since_id=since_id, count=count)
-    tweets.sort(key=lambda x: x.id) # ensure tweets are sorted oldest => newest
+    tweets = api.GetSearch(term=query, since_id=since_id, count=count)
+    # ensure tweets are sorted oldest => newest
+    tweets.sort(key=lambda x: x.id)
     for tweet in tweets:
         email_vars = email_template_vars_from_tweet(tweet)
         body = email_body(email_vars)
         email_tweet(to=recipients, subject=email_vars['subject'],
-                text=body['text'],
-                html=body['html'])
+                    text=body['text'],
+                    html=body['html'])
 
         # import pdb; pdb.set_trace()
         # mark this tweet as done
@@ -203,8 +221,9 @@ def search_and_email(api, query, since_id_filename, recipients, count=100):
 def email_tweet(to, subject, text, html=None):
     gmailer.GMAIL_SETTINGS['user'] = settings.GMAIL_USER
     gmailer.GMAIL_SETTINGS['password'] = settings.GMAIL_PASSWORD
-    gmailer.mail(to=to, subject=subject, text=text, html=html, cache_connection=True)
-    
+    gmailer.mail(to=to, subject=subject, text=text,
+                 html=html, cache_connection=True)
+
 
 class TestSearch(unittest.TestCase):
     import simplejson
@@ -215,9 +234,10 @@ class TestSearch(unittest.TestCase):
         d = email_template_vars_from_tweet(self.tweet1)
         self.assertEqual(d['screen_name'], self.tweet1.user.screen_name)
         self.assertEqual(d['profile_link'], "https://twitter.com/TrevorBoyson")
-        self.assertEqual(d['profile_image_url'], self.tweet1.user.profile_image_url)
-        self.assertEqual(d['tweet_link'], "https://twitter.com/TrevorBoyson/status/352578986758512640")
-        # import pdb; pdb.set_trace()
+        self.assertEqual(d['profile_image_url'],
+                         self.tweet1.user.profile_image_url)
+        link = "https://twitter.com/TrevorBoyson/status/352578986758512640"
+        self.assertEqual(d['tweet_link'], link)
 
 
 if __name__ == "__main__":
@@ -227,11 +247,13 @@ python twitter_search.py -f ./since_id.txt -r "you@gmail.com" -q "aristotle"
     """
     import argparse
     parser = argparse.ArgumentParser("python twitter_search.py")
-    parser.add_argument('-f','--since_id_filename', required=True, dest="since_id_filename", type=str,
-                        help="Path to file storing max id of tweets alreadyemailed.")
-    parser.add_argument('-r','--recipients', required=True, dest="recipients", type=str,
+    parser.add_argument('-f', '--since_id_filename', required=True,
+                        dest="since_id_filename", type=str,
+                        help="Path to file storing max id of tweets emailed.")
+    parser.add_argument('-r', '--recipients', required=True,
+                        dest="recipients", type=str,
                         help="CSV of emails to notify about twitter search.")
-    parser.add_argument('-q','--query', dest="query", type=str,
+    parser.add_argument('-q', '--query', dest="query", type=str,
                         help="Twitter search query.")
 
     args = parser.parse_args()
@@ -239,4 +261,5 @@ python twitter_search.py -f ./since_id.txt -r "you@gmail.com" -q "aristotle"
     api = twitter.Api(**settings.TWITTER_SETTINGS)
 
     search_and_email(api=api, query=args.query,
-            since_id_filename=args.since_id_filename, recipients=args.recipients)
+                     since_id_filename=args.since_id_filename,
+                     recipients=args.recipients)
