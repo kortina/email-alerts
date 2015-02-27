@@ -204,7 +204,7 @@ def search_and_email(api, query, since_id_filename, recipients, count=100):
     since_id = get_since_id(since_id_filename)
 
     tweets = api.GetSearch(term=query, since_id=since_id, count=count,
-                           language="en")
+                           lang="en")
     # ensure tweets are sorted oldest => newest
     tweets.sort(key=lambda x: x.id)
     for tweet in tweets:
